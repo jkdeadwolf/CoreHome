@@ -4,14 +4,45 @@ using System.Web;
 
 namespace CoreHome.Infrastructure.Services
 {
+    internal interface IOssClient
+    {
+        PutObjectResult PutObject(string bucketName, string key, Stream content);
+
+        ObjectListing ListObjects(string bucketName, string prefix);
+    }
+
+    internal class AliyunOssClient : OssClient, IOssClient
+    {
+        internal AliyunOssClient(OssConfig config)
+            :base(config.EndPoint, config.AccessKeyId, config.AccessKeySecret)
+        { 
+        }
+    }
+
+    internal class LocalFileOssClient : IOssClient
+    {
+        public ObjectListing ListObjects(string bucketName, string prefix)
+        {
+            throw new NotImplementedException();
+        }
+
+        public PutObjectResult PutObject(string bucketName, string key, Stream content)
+        {
+            throw new NotImplementedException();
+        }
+    }
+
     public class OssService
     {
-        private readonly OssClient client;
+        private readonly IOssClient client;
         private readonly OssConfig config;
 
         public OssService(OssConfig config)
         {
-            client = new OssClient(config.EndPoint, config.AccessKeyId, config.AccessKeySecret);
+            if (string.IsNullOrEmpty(config.EndPoint) == false)
+                client = new AliyunOssClient(config);
+            else                
+                client = new LocalFileOssClient();
             this.config = config;
         }
 

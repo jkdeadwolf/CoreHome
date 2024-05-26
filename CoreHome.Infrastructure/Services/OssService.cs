@@ -1,5 +1,7 @@
 ﻿using Aliyun.OSS;
+using Aliyun.OSS.Model;
 using CoreHome.Infrastructure.Models;
+using System.Runtime.InteropServices;
 using System.Web;
 
 namespace CoreHome.Infrastructure.Services
@@ -8,7 +10,28 @@ namespace CoreHome.Infrastructure.Services
     {
         PutObjectResult PutObject(string bucketName, string key, Stream content);
 
-        ObjectListing ListObjects(string bucketName, string prefix);
+        IObjectListing ListObjects(string bucketName, string prefix);
+    }
+
+    internal interface IObjectListing
+    {
+        IEnumerable<OssObjectSummary> ObjectSummaries { get; }
+    }
+
+    internal class OssObjectListing : IObjectListing
+    {
+        private IEnumerable<OssObjectSummary> objectSummaries;
+        internal OssObjectListing(IEnumerable<OssObjectSummary> objectSummaries)
+        {
+            this.objectSummaries = objectSummaries;
+        }
+        public IEnumerable<OssObjectSummary> ObjectSummaries
+        {
+            get
+            {
+                return this.objectSummaries;
+            }
+        }
     }
 
     internal class AliyunOssClient : OssClient, IOssClient
@@ -17,18 +40,27 @@ namespace CoreHome.Infrastructure.Services
             :base(config.EndPoint, config.AccessKeyId, config.AccessKeySecret)
         { 
         }
+
+        IObjectListing IOssClient.ListObjects(string bucketName, string prefix)
+        {
+            ObjectListing objectListing = this.ListObjects(bucketName, prefix);
+            OssObjectListing ossObjectListing = new OssObjectListing(objectListing.ObjectSummaries);
+            return ossObjectListing;
+        }
     }
 
     internal class LocalFileOssClient : IOssClient
     {
-        public ObjectListing ListObjects(string bucketName, string prefix)
+        private readonly string ossPath = @".\oos";
+        public IObjectListing ListObjects(string bucketName, string prefix)
         {
-            throw new NotImplementedException();
+            OssObjectListing ossObjectListing = new OssObjectListing(new List<OssObjectSummary>());
+            return ossObjectListing;
         }
 
         public PutObjectResult PutObject(string bucketName, string key, Stream content)
         {
-            throw new NotImplementedException();
+            return null;
         }
     }
 
@@ -85,7 +117,7 @@ namespace CoreHome.Infrastructure.Services
         public List<string> GetMusics()
         {
             string path = "musics/";
-            ObjectListing listing = client.ListObjects(config.BucketName, path);
+            IObjectListing listing = client.ListObjects(config.BucketName, path);
 
             List<string> musics = [];
             foreach (OssObjectSummary item in listing.ObjectSummaries)
